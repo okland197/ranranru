@@ -23,6 +23,7 @@ fps = 1
 background_Sound = pygame.mixer.Sound("Background.wav")
 effect_gun_Sound = pygame.mixer.Sound("Gun.wav")
 Redzone_war_Sound = pygame.mixer.Sound("Redzone_war.wav")
+dead_Sound = pygame.mixer.Sound("dead.wav")
 
 #소리 설정하기
 effect_gun_Sound.set_volume(0.5)
@@ -31,6 +32,12 @@ background_Sound.play(-1)
 ##이미지 불러오기ㄱ----------------------------------------------------------------------
 
 background = pygame.image.load("background.png")
+black_background = pygame.image.load("black_background.png")
+
+dead = pygame.image.load("dead.png")
+dead_left = pygame.image.load("dead_left.png")
+dead_right = pygame.image.load("dead_right.png")
+
 char_attack_sprite = [pygame.image.load("char_Attack1.png"),pygame.image.load("char_Attack2.png")]
 wall_sprite = [pygame.image.load("wall1.png")]
 Redzone_w_sprite = [pygame.image.load("redzone-warning.png")]
@@ -60,6 +67,11 @@ chr_s_num = 0
 #애니메이션 프레임 값 0 1을 내보내는 값
 animation_FP = 0
 
+#(주인공)캐릭터 사망판정
+dead_check = False
+#(주인공)캐릭터 시체(?) 파티클 서서히 받는 중력값
+dead_gra = 0
+
 ##슈팅ㄱ
 #화면에서 현재 슈팅이 띄어지는 위치들 목록
 shot_list = []
@@ -88,6 +100,9 @@ redzone_war = False
 redzone_Boom = False
 #레드존 랜덤 위치를 저장하기 위한 변수
 attackX,attackY = [0,0]
+
+##게임메이커식 방 설정ㄱ--------------------------------------------------------------------
+room = [0,1,0]
 
 #---------------------------------------------------------------------------------------
 
@@ -179,7 +194,7 @@ def RedZone(A,B):
     global RedZone_FPS
     global redzone_war
     global redzone_Boom
-    global attackX,attackY
+    global attackX,attackY,charX,charY
 
     if redzone_war == False:
         if RedZone_FPS == A:
@@ -216,12 +231,20 @@ def RedZone(A,B):
         if 360 > RedZone_FPS > 30:
             for num in [0]:
                 screen.blit(boom_sprite[fp], attack_list[num])
+            if collision_check(charX, charY, [attack_list[0]]) == True:
+                change_room(2)
         if 390 > RedZone_FPS > 60:
             for num in [1,2,3,4]:
                 screen.blit(boom_sprite[fp], attack_list[num])
+            if collision_check(charX, charY, [attack_list[1],attack_list[2],attack_list[3],attack_list[4]]) == True:
+                change_room(2)
         if 420 > RedZone_FPS > 90:
             for num in [5,6,7,8,9,10,11,12]:
                 screen.blit(boom_sprite[fp], attack_list[num])
+            if collision_check(charX, charY, [attack_list[5],attack_list[6],attack_list[7],
+                                              attack_list[8],attack_list[9],attack_list[10],attack_list[11],
+                                              attack_list[12]]) == True:
+                change_room(2)
         if 420 < RedZone_FPS:
             redzone_war = False
             redzone_Boom = False
@@ -235,91 +258,191 @@ def collision_check(A,B,C):
     else:
         return False
 
+##룸을 바꾸는 함수ㄱ
+def change_room(change_num):
+    global room
+    for i in range(len(room)):
+        room[i] = 0
+    room[change_num] = 1
+
+##죽을때 하트 떨어지는 함수ㄱ
+def dead_parti(a):
+    global charX
+    global charY
+    global dead_gra
+
+    charY += dead_gra
+
+    ntime = dead_time - 139
+
+    screen.blit(dead_right, (charX + a, charY))
+    screen.blit(dead_left, (charX - (a*ntime*4), charY))
+
+    charX += a
+    charX += a
+    dead_gra += 0.2
+
+##재시작을 위한 함수ㄱ
+def restart():
+    global charX, charY, Vspeed, move_X, shotFPS, move_Y, check, chr_s_num, animation_FP,dead_check,\
+        dead_gra,shot_list,del_shot_list,wall_FPS,wall_list,RedZone_FPS,RedZone_list,redzone_war,\
+        redzone_Boom,attackX,attackY,fps
+
+    a = char_sprite[0].get_size()
+
+    charX = (screen_width / 2) - (a[0] / 2)
+    charY = (screen_height / 2) - (a[1] / 2)
+
+    Vspeed = 4
+    move_X = 0
+    move_Y = 0
+    check = [0, 0, 0, 0, 0]
+    chr_s_num = 0
+    animation_FP = 0
+
+    dead_check = False
+    dead_gra = 0
+
+    shot_list = []
+    del_shot_list = []
+    shotFPS = 0
+
+    wall_FPS = 0
+    wall_list = []
+
+    RedZone_FPS = 0
+    RedZone_list = []
+    redzone_war = False
+    redzone_Boom = False
+    attackX, attackY = [0, 0]
+
+    fps = 1
+
+    background_Sound.play(-1)
+
+
+
 #게임 진행 여부----------------------------------------------------------------------------
 running = True
 #게임 진행--------------------------------------------------------------------------------
 while running:
     dt = clock.tick(120)
-    animation_FP = anime(15)
-    screen.blit(background, (0, 0))
+    if room[1] == 1:
+        animation_FP = anime(15)
+        screen.blit(background, (0, 0))
 
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_KP_4:
-                check[0] = 1
-                move_X = -Vspeed
-            if event.key == pygame.K_KP_6:
-                check[1] = 1
-                move_X = Vspeed
-            if event.key == pygame.K_KP_5:
-                check[2] = 1
-                move_Y = Vspeed
-            if event.key == pygame.K_KP_8:
-                check[3] = 1
-                move_Y = -Vspeed
-            if event.key == pygame.K_SPACE:
-                check[4] = 1
-
-        if event.type == pygame.KEYUP:
-            if event.key == pygame.K_KP_4:
-                check[0] = 0
-                if check[1] == 1:
-                    move_X = Vspeed
-                else:
-                    move_X = 0
-            if event.key == pygame.K_KP_6:
-                check[1] = 0
-                if check[0] == 1:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_KP_4:
+                    check[0] = 1
                     move_X = -Vspeed
-                else:
-                    move_X = 0
-            if event.key == pygame.K_KP_5:
-                check[2] = 0
-                if check[3] == 1:
+                if event.key == pygame.K_KP_6:
+                    check[1] = 1
+                    move_X = Vspeed
+                if event.key == pygame.K_KP_5:
+                    check[2] = 1
                     move_Y = Vspeed
-                else:
-                    move_Y = 0
-            if event.key == pygame.K_KP_8:
-                check[3] = 0
-                if check[2] == 1:
+                if event.key == pygame.K_KP_8:
+                    check[3] = 1
                     move_Y = -Vspeed
-                else:
-                    move_Y = 0
-            if event.key == pygame.K_SPACE:
-                check[4] = 0
-                shotFPS = 1
+                if event.key == pygame.K_SPACE:
+                    check[4] = 1
 
-    charX += move_X
-    charY += move_Y
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_KP_4:
+                    check[0] = 0
+                    if check[1] == 1:
+                        move_X = Vspeed
+                    else:
+                        move_X = 0
+                if event.key == pygame.K_KP_6:
+                    check[1] = 0
+                    if check[0] == 1:
+                        move_X = -Vspeed
+                    else:
+                        move_X = 0
+                if event.key == pygame.K_KP_5:
+                    check[2] = 0
+                    if check[3] == 1:
+                        move_Y = Vspeed
+                    else:
+                        move_Y = 0
+                if event.key == pygame.K_KP_8:
+                    check[3] = 0
+                    if check[2] == 1:
+                        move_Y = -Vspeed
+                    else:
+                        move_Y = 0
+                if event.key == pygame.K_SPACE:
+                    check[4] = 0
+                    shotFPS = 1
 
-    if charX < 0:
-        charX = 0
-    if charX > screen_width-a[0]:
-        charX = screen_width-a[0]
+        charX += move_X
+        charY += move_Y
 
-    if charY < 0:
-        charY = 0
-    if charY > screen_height-a[1]:
-        charY = screen_height-a[1]
+        if charX < 0:
+            charX = 0
+        if charX > screen_width-a[0]:
+            charX = screen_width-a[0]
 
-    RedZone(500,300)
+        if charY < 0:
+            charY = 0
+        if charY > screen_height-a[1]:
+            charY = screen_height-a[1]
 
-    if collision_check(charX,charY,wall_list) == True:
-        charX = -500
-        charY = -500
+        RedZone(500,300)
 
-    Chracter = screen.blit(char_sprite[animation_FP], (charX, charY))
+        if collision_check(charX,charY,wall_list) == True:
+            change_room(2)
 
-    shooting(5)
+        Chracter = screen.blit(char_sprite[animation_FP], (charX, charY))
 
-    wall_move(100, 2, 3)
+        shooting(5)
 
-    if fps > 120:
-        fps = 1
-    else:
-        fps += 1
+        wall_move(100, 2, 3)
+
+        if fps > 120:
+            fps = 1
+        else:
+            fps += 1
+
+    #게임오버시
+    if room[2] == 1:
+
+        screen.blit(black_background, (0, 0))
+        background_Sound.stop()
+        Redzone_war_Sound.stop()
+
+        if dead_check == False:
+            dead_Sound.play()
+            dead_check = True
+            dead_time = 0
+
+        if dead_time < 140:
+            screen.blit(dead, (charX, charY))
+
+        if not dead_time == 300:
+            dead_time += 1
+        else:
+            font = pygame.font.SysFont("GULIM",24,True,False)
+            text = font.render("재시작을 원하신다면 R키를 눌러주세요",True,(255,255,255))
+            txy = text.get_rect(center=(screen_width / 2, screen_height / 2))
+            screen.blit(text, (txy))
+
+        if charY < screen_height:
+            if dead_time > 140:
+                dead_parti(1)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    if dead_time == 300:
+                        change_room(1)
+                        restart()
 
     pygame.display.update()
 
