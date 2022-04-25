@@ -32,15 +32,15 @@ background_Sound.play(-1)
 ##이미지 불러오기ㄱ----------------------------------------------------------------------
 
 background = pygame.image.load("background.png")
-black_background = pygame.image.load("black_background.png")
+black_background = pygame.image.load("black_background.png").convert()
 
-dead = pygame.image.load("dead.png")
+dead = pygame.image.load("dead.png").convert()
 dead_left = pygame.image.load("dead_left.png")
 dead_right = pygame.image.load("dead_right.png")
 
 char_attack_sprite = [pygame.image.load("char_Attack1.png"),pygame.image.load("char_Attack2.png")]
-wall_sprite = [pygame.image.load("wall1.png")]
-Redzone_w_sprite = [pygame.image.load("redzone-warning.png")]
+wall_sprite = [pygame.image.load("wall1.png").convert()]
+Redzone_w_sprite = pygame.image.load("redzone-warning.png")
 boom_sprite = [pygame.image.load("boom1.png"),pygame.image.load("boom2.png"),pygame.image.load("boom3.png")]
 
 ##(주인공)캐릭터 기본 설정 및 슈팅 설정ㄱ---------------------------------------------------
@@ -100,13 +100,15 @@ redzone_war = False
 redzone_Boom = False
 #레드존 랜덤 위치를 저장하기 위한 변수
 attackX,attackY = [0,0]
+#레드존 경고 알파 값
+redzone_alpha = 0
 
 ##게임메이커식 방 설정ㄱ--------------------------------------------------------------------
 room = [0,1,0]
 
 #---------------------------------------------------------------------------------------
-
-
+#0=폭팔했을 경우
+check_FPS=[0]
 
 ##함수 설정ㄱ-----------------------------------------------------------------------------
 
@@ -142,7 +144,7 @@ def shooting(A):
             del_shot_list.append(shot_list[i])
 
     for i in range(len(shot_list)):
-        if collision_check(shot_list[i][0], shot_list[i][1], wall_list) == True:
+        if collision_check(shot_list[i][0], shot_list[i][1], wall_list,0) == True:
             del_shot_list.append(shot_list[i])
 
     if not shot_list == []:
@@ -194,7 +196,7 @@ def RedZone(A,B):
     global RedZone_FPS
     global redzone_war
     global redzone_Boom
-    global attackX,attackY,charX,charY
+    global attackX,attackY,charX,charY,redzone_alpha
 
     if redzone_war == False:
         if RedZone_FPS == A:
@@ -215,8 +217,14 @@ def RedZone(A,B):
     if redzone_war == True and redzone_Boom == False:
         if not RedZone_FPS == B:
             RedZone_FPS += 1
+            if 1 == RedZone_FPS/B:
+                redzone_alpha = 0
+
+            if not redzone_alpha == 255:
+                redzone_alpha += 1
+
             for i in attack_list:
-                screen.blit(Redzone_w_sprite[0], (i))
+                blit_alpha(screen, Redzone_w_sprite, (i), redzone_alpha)
         else:
             redzone_Boom = True
             RedZone_FPS = 0
@@ -231,19 +239,19 @@ def RedZone(A,B):
         if 360 > RedZone_FPS > 30:
             for num in [0]:
                 screen.blit(boom_sprite[fp], attack_list[num])
-            if collision_check(charX, charY, [attack_list[0]]) == True:
+            if collision_check(charX, charY, [attack_list[0]],5) == True:
                 change_room(2)
         if 390 > RedZone_FPS > 60:
             for num in [1,2,3,4]:
                 screen.blit(boom_sprite[fp], attack_list[num])
-            if collision_check(charX, charY, [attack_list[1],attack_list[2],attack_list[3],attack_list[4]]) == True:
+            if collision_check(charX, charY, [attack_list[1],attack_list[2],attack_list[3],attack_list[4]],5) == True:
                 change_room(2)
         if 420 > RedZone_FPS > 90:
             for num in [5,6,7,8,9,10,11,12]:
                 screen.blit(boom_sprite[fp], attack_list[num])
             if collision_check(charX, charY, [attack_list[5],attack_list[6],attack_list[7],
                                               attack_list[8],attack_list[9],attack_list[10],attack_list[11],
-                                              attack_list[12]]) == True:
+                                              attack_list[12]],5) == True:
                 change_room(2)
         if 420 < RedZone_FPS:
             redzone_war = False
@@ -251,9 +259,9 @@ def RedZone(A,B):
             RedZone_FPS = 0
 
 ##(주인공)캐릭터랑 충돌하는 함수ㄱ
-def collision_check(A,B,C):
+def collision_check(A,B,C,D):
     for i in range(len(C)):
-        if B+5 < C[i][1]+64 and C[i][1] < B+31 and C[i][0] < A+31 and A+5 < C[i][0]+64:
+        if B+5+D < C[i][1]+64 and C[i][1] < B+31-D and C[i][0] < A+31-D and A+5+D < C[i][0]+64:
             return True
     else:
         return False
@@ -271,22 +279,20 @@ def dead_parti(a):
     global charY
     global dead_gra
 
+    dead_gra += 0.002
     charY += dead_gra
+    charX += a
 
-    ntime = dead_time - 139
+    ntime = dead_time - 1400
 
     screen.blit(dead_right, (charX + a, charY))
-    screen.blit(dead_left, (charX - (a*ntime*4), charY))
-
-    charX += a
-    charX += a
-    dead_gra += 0.2
+    screen.blit(dead_left, (charX - (a*ntime*2), charY))
 
 ##재시작을 위한 함수ㄱ
 def restart():
     global charX, charY, Vspeed, move_X, shotFPS, move_Y, check, chr_s_num, animation_FP,dead_check,\
         dead_gra,shot_list,del_shot_list,wall_FPS,wall_list,RedZone_FPS,RedZone_list,redzone_war,\
-        redzone_Boom,attackX,attackY,fps
+        redzone_Boom,attackX,attackY,fps,redzone_alpha
 
     a = char_sprite[0].get_size()
 
@@ -316,20 +322,40 @@ def restart():
     redzone_Boom = False
     attackX, attackY = [0, 0]
 
+    redzone_alpha = 0
+
     fps = 1
 
     background_Sound.play(-1)
 
-
+##투명해지게 하는 마법같은 함수ㄱ
+def blit_alpha(target, source, location, opacity):
+    x = location[0]
+    y = location[1]
+    temp = pygame.Surface((source.get_width(), source.get_height())).convert()
+    temp.blit(target, (-x, -y))
+    temp.blit(source, (0, 0))
+    temp.set_alpha(opacity)
+    target.blit(temp, location)
 
 #게임 진행 여부----------------------------------------------------------------------------
 running = True
 #게임 진행--------------------------------------------------------------------------------
 while running:
-    dt = clock.tick(120)
+
     if room[1] == 1:
         animation_FP = anime(15)
-        screen.blit(background, (0, 0))
+        screen.blit(black_background, (0, 0))
+
+        if redzone_Boom == True:
+            check_FPS[0] += 1
+            back_X = random.randint(-5, 5)
+            back_Y = random.randint(-5, 5)
+            screen.blit(background, (back_X, back_Y))
+        else:
+            screen.blit(background, (0, 0))
+            check_FPS[0] = 0
+
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -392,9 +418,9 @@ while running:
         if charY > screen_height-a[1]:
             charY = screen_height-a[1]
 
-        RedZone(500,300)
+        RedZone(500,270)
 
-        if collision_check(charX,charY,wall_list) == True:
+        if collision_check(charX,charY,wall_list,0) == True:
             change_room(2)
 
         Chracter = screen.blit(char_sprite[animation_FP], (charX, charY))
@@ -420,10 +446,10 @@ while running:
             dead_check = True
             dead_time = 0
 
-        if dead_time < 140:
+        if dead_time < 1400:
             screen.blit(dead, (charX, charY))
 
-        if not dead_time == 300:
+        if not dead_time == 2500:
             dead_time += 1
         else:
             font = pygame.font.SysFont("GULIM",24,True,False)
@@ -432,15 +458,15 @@ while running:
             screen.blit(text, (txy))
 
         if charY < screen_height:
-            if dead_time > 140:
-                dead_parti(1)
+            if dead_time > 1400:
+                dead_parti(0.2)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_r:
-                    if dead_time == 300:
+                    if dead_time == 2500:
                         change_room(1)
                         restart()
 
